@@ -1,9 +1,8 @@
 name: CI - Build e Testes
 
 on:
-  # `master` no lugar de `main`: a branch nunca existiu neste repositorio, entao ate
-  # 03/09/2026 NENHUM push ou PR para a branch de producao rodava CI. Uma promocao
-  # para producao nao era validada por nada.
+  # Repositorio proprio do Painel Admin desde 29/10/2026 (antes era a pasta admin/ do
+  # monorepo GabrielVogado/saude-monitor). Branches do git-flow: develop e master.
   push:
     branches: [develop, master]
   # `feature/**` e `bugfix/**` desde 05/10/2026, a pedido do PO: PR empilhado (base em
@@ -14,197 +13,6 @@ on:
     branches: [develop, master, 'feature/**', 'bugfix/**']
 
 jobs:
-  backend:
-    name: Backend (Spring Boot)
-    runs-on: ubuntu-latest
-    env:
-      # Só "true"/"false": o token em si não fica exposto aos passos de build e
-      # teste. A análise do Sonar pula enquanto o secret não existir (e em PR de
-      # fork, que não recebe secrets) sem reprovar o CI.
-      TEM_SONAR: ${{ secrets.SONAR_TOKEN != '' }}
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          # Histórico completo: o SonarQube Cloud usa o blame para separar o
-          # código novo do antigo. Com o clone raso padrão, tudo vira "novo".
-          fetch-depth: 0
-
-      - name: Setup Java 25
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '25'
-
-      - name: Cache Gradle
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('backend/**/*.gradle*') }}
-          restore-keys: ${{ runner.os }}-gradle
-
-      - name: Compilar e rodar testes
-        # `build` inclui `check`, que agora depende da verificação de cobertura
-        # do JaCoCo: queda abaixo do piso reprova o PR (DOD-01 / E8-08).
-        run: |
-          chmod +x gradlew
-          ./gradlew --no-daemon build
-
-      - name: Publicar relatório de cobertura (backend)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cobertura-backend
-          path: backend/build/reports/jacoco/test
-          retention-days: 14
-          if-no-files-found: ignore
-
-      - name: Contar testes executados (backend)
-        run: >-
-          python3 ../.github/scripts/contagem_testes.py contar --area backend
-          --relatorio build/test-results/test
-          --cobertura build/reports/jacoco/test/jacocoTestReport.xml --saida ../contagem-testes
-
-      - name: Cobertura do código novo (mínimo 90%)
-        # M-031: as linhas que o PR altera nesta área precisam de pelo menos 90% de
-        # cobertura (decisão do PO em 04/10/2026). Linhas fora do recorte da
-        # cobertura da área (DTOs, estilos...) não entram na conta.
-        if: github.event_name == 'pull_request'
-        working-directory: .
-        env:
-          BASE: origin/${{ github.base_ref }}
-        run: |
-          pip install --quiet diff-cover==10.6.0
-          diff-cover backend/build/reports/jacoco/test/jacocoTestReport.xml --compare-branch="$BASE" --src-roots backend/src/main/java --fail-under=90
-
-      - name: Publicar contagem de testes (backend)
-        uses: actions/upload-artifact@v4
-        with:
-          name: contagem-testes-backend
-          path: contagem-testes/backend.json
-          # A contagem do CI de push da develop/master é o "cenário anterior"
-          # da trava de testes: precisa sobreviver a períodos sem merge.
-          retention-days: 90
-
-      - name: Análise SonarQube Cloud (backend)
-        if: env.TEM_SONAR == 'true'
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        # Reaproveita as classes e o XML do JaCoCo gerados pelo `build` acima.
-        run: ./gradlew --no-daemon sonar
-
-  frontend:
-    name: Frontend (Expo Web)
-    runs-on: ubuntu-latest
-    env:
-      TEM_SONAR: ${{ secrets.SONAR_TOKEN != '' }}
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          # Histórico completo: o SonarQube Cloud usa o blame para separar o
-          # código novo do antigo. Com o clone raso padrão, tudo vira "novo".
-          fetch-depth: 0
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Instalar dependências
-        # `npm ci` (não usado aqui de propósito): exige o lockfile
-        # byte-a-byte sincronizado com package.json, incluindo a árvore
-        # completa de dependências opcionais específicas de plataforma
-        # (ex.: `@unrs/resolver-binding-wasm32-wasi`, puxado transitivamente
-        # por `eslint-config-expo`). O npm no Windows não escreve essa
-        # subárvore de forma consistente (confirmado: `npm ci` falhava aqui
-        # mesmo logo após um `npm install` bem-sucedido na mesma máquina,
-        # independente da versão fixada via `overrides`) — então o lockfile
-        # gerado localmente nunca fica "puro" o bastante para `npm ci` no
-        # Linux do runner. `npm install` tolera essa divergência e resolve
-        # a árvore normalmente.
-        run: npm install --legacy-peer-deps
-
-      - name: Typecheck
-        # Atenção: este passo não verifica o código. O `tsconfig.json` tem
-        # `checkJs: false` e o projeto é 100% `.js` — o `tsc` não tem o que
-        # olhar. Fica no lugar porque vira gate de verdade quando o ARQ-11
-        # (tipagem incremental) começar. Quem verifica hoje é o lint abaixo.
-        run: npm run typecheck
-
-      - name: Lint (ESLint)
-        # Erro reprova o PR. Aviso também, quando passa do piso congelado em
-        # `package.json` — mesma lógica do piso de cobertura (E8-13 / ENG-02).
-        run: npm run lint
-
-      - name: Testes (Jest) com cobertura
-        # O piso configurado em `jest.config.js` reprova o PR quando a cobertura
-        # cai — mesma porta do backend (DOD-01 / E8-08).
-        # `--json` grava o resultado da execução, de onde sai a contagem de testes.
-        run: |
-          mkdir -p test-results
-          npm run test:coverage -- --ci --maxWorkers=2 --json --outputFile=test-results/jest.json
-
-      - name: Publicar relatório de cobertura (frontend)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: cobertura-frontend
-          path: frontend/coverage
-          retention-days: 14
-          if-no-files-found: ignore
-
-      - name: Contar testes executados (frontend)
-        run: >-
-          python3 ../.github/scripts/contagem_testes.py contar --area frontend
-          --relatorio test-results/jest.json
-          --cobertura coverage/coverage-summary.json --saida ../contagem-testes
-
-      - name: Cobertura do código novo (mínimo 90%)
-        # M-031: as linhas que o PR altera nesta área precisam de pelo menos 90% de
-        # cobertura (decisão do PO em 04/10/2026). Linhas fora do recorte da
-        # cobertura da área (DTOs, estilos...) não entram na conta.
-        if: github.event_name == 'pull_request'
-        working-directory: .
-        env:
-          BASE: origin/${{ github.base_ref }}
-        run: |
-          pip install --quiet diff-cover==10.6.0
-          # O lcov do Jest traz caminhos absolutos ou relativos a frontend/; o
-          # diff-cover compara com caminhos relativos à raiz do repositório.
-          sed -e "s#^SF:$GITHUB_WORKSPACE/#SF:#" -e '/^SF:frontend\//!s#^SF:#SF:frontend/#' \
-            frontend/coverage/lcov.info > lcov-frontend.info
-          diff-cover lcov-frontend.info --compare-branch="$BASE" --fail-under=90
-
-      - name: Publicar contagem de testes (frontend)
-        uses: actions/upload-artifact@v4
-        with:
-          name: contagem-testes-frontend
-          path: contagem-testes/frontend.json
-          retention-days: 90
-
-      - name: Análise SonarQube Cloud (frontend)
-        if: env.TEM_SONAR == 'true'
-        uses: SonarSource/sonarqube-scan-action@v8
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          # Configuração em frontend/sonar-project.properties.
-          projectBaseDir: frontend
-
-      - name: Build web (export Expo)
-        run: npx expo export --platform web
-
   admin:
     # Até 28/09/2026 o Painel Admin (Angular) não passava por CI nenhum: um PR que
     # quebrasse teste ou build do `admin/` ficava verde. Foi assim que a sessão vencida
@@ -213,9 +21,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TEM_SONAR: ${{ secrets.SONAR_TOKEN != '' }}
-    defaults:
-      run:
-        working-directory: admin
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -230,7 +35,7 @@ jobs:
         with:
           node-version: '20'
           cache: npm
-          cache-dependency-path: admin/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Instalar dependências
         # O lockfile do admin foi gerado com o npm 11.6.1 (`packageManager` no
@@ -251,23 +56,21 @@ jobs:
 
       - name: Contar testes executados (admin)
         run: >-
-          python3 ../.github/scripts/contagem_testes.py contar --area admin
+          python3 .github/scripts/contagem_testes.py contar --area admin
           --relatorio test-results/vitest.json
-          --cobertura coverage/admin/lcov.info --saida ../contagem-testes
+          --cobertura coverage/admin/lcov.info --saida contagem-testes
 
       - name: Cobertura do código novo (mínimo 90%)
         # M-031: as linhas que o PR altera nesta área precisam de pelo menos 90% de
         # cobertura (decisão do PO em 04/10/2026). Linhas fora do recorte da
         # cobertura da área (DTOs, estilos...) não entram na conta.
         if: github.event_name == 'pull_request'
-        working-directory: .
         env:
           BASE: origin/${{ github.base_ref }}
         run: |
           pip install --quiet diff-cover==10.6.0
-          # O lcov do Vitest traz caminhos relativos a admin/.
-          sed -e '/^SF:admin\//!s#^SF:#SF:admin/#' admin/coverage/admin/lcov.info > lcov-admin.info
-          diff-cover lcov-admin.info --compare-branch="$BASE" --fail-under=90
+          # O lcov do Vitest já traz caminhos relativos à raiz do repositório.
+          diff-cover coverage/admin/lcov.info --compare-branch="$BASE" --fail-under=90
 
       - name: Publicar contagem de testes (admin)
         uses: actions/upload-artifact@v4
@@ -281,9 +84,7 @@ jobs:
         uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          # Configuração em admin/sonar-project.properties.
-          projectBaseDir: admin
+        # Configuração em sonar-project.properties, na raiz.
 
       - name: Build
         run: npx ng build
@@ -298,7 +99,7 @@ jobs:
     # O nome do check fica o mesmo; desde a M-031 o job também barra queda da
     # cobertura total de cada área.
     if: github.event_name == 'pull_request'
-    needs: [backend, frontend, admin]
+    needs: [admin]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
