@@ -42,3 +42,18 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Resultado das execuções de teste e da trava de contagem (CI)
+/test-results
+/contagem-testes
+.scannerwork/
+
+# Configuração de agentes de IA e processo do agente: não sobem (decisão do PO, 03/09/2026)
+.claude/
+CLAUDE.md
+.opencode/
+.spec/
+.agents/
+skills-lock.json
+skill-observations/
+skill-updates/

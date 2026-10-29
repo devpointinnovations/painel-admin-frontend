@@ -37,10 +37,7 @@
         "do_not_enforce_on_create": true,
         "required_status_checks": [
           {
-            "context": "Backend (Spring Boot)"
-          },
-          {
-            "context": "Frontend (Expo Web)"
+            "context": "Admin (Angular)"
           },
           {
             "context": "Origem do PR (master)"
