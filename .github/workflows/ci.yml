@@ -81,6 +81,7 @@ jobs:
 
       - name: Análise SonarQube Cloud (admin)
         if: env.TEM_SONAR == 'true'
+        timeout-minutes: 10
         uses: SonarSource/sonarqube-scan-action@v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

@@ -1,6 +1,6 @@
-# Radar Saúde — Painel Admin
+# Pulseira Verde — Painel Admin
 
-Painel web de administração do Radar Saúde (Angular 21, Reactive Forms, Leaflet): login de
+Painel web de administração do Pulseira Verde (Angular 21, Reactive Forms, Leaflet): login de
 administrador, cadastro e edição de hospitais, ativação e desativação, bloqueio de escrita
 de feedback, moderação de sugestões e dashboard de indicadores.
 
