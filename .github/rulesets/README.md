@@ -3,7 +3,7 @@
 Estes JSON são importáveis em **Settings → Rules → Rulesets → New ruleset →
 Import a ruleset**.
 
-> Repositório `devpointinnovations/painel-admin-frontend` desde 29/10/2026. O histórico
+> Repositório `devpointinnovations/pulseira-verde-admin` desde 29/10/2026. O histórico
 > abaixo (datas de setembro, um colaborador só) vem do monorepo
 > `GabrielVogado/saude-monitor`, de onde este repositório foi separado. Aqui o check
 > exigido é o `Admin (Angular)`; os de backend e mobile ficam nos repositórios deles.
