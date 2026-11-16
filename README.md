@@ -8,10 +8,10 @@ de feedback, moderação de sugestões e dashboard de indicadores.
 
 | Repositório | Conteúdo |
 |---|---|
-| [radar-saude-mobile](https://github.com/devpointinnovations/radar-saude-mobile) | App Expo / React Native |
-| **painel-admin-frontend** (este) | Painel Admin Angular |
-| [radar-saude-backend](https://github.com/devpointinnovations/radar-saude-backend) | API Spring Boot, deploy no Cloud Run, testes de desempenho |
-| [radar-saude-docs](https://github.com/devpointinnovations/radar-saude-docs) | Documentação, ADRs, backlog, registros de homologação e site |
+| [pulseira-verde-mobile](https://github.com/devpointinnovations/pulseira-verde-mobile) | App Expo / React Native |
+| **pulseira-verde-admin** (este) | Painel Admin Angular |
+| [pulseira-verde-backend](https://github.com/devpointinnovations/pulseira-verde-backend) | API Spring Boot, deploy no Cloud Run, testes de desempenho |
+| [pulseira-verde-docs](https://github.com/devpointinnovations/pulseira-verde-docs) | Documentação, ADRs, backlog, registros de homologação e site |
 
 Até 29/10/2026 o painel era a pasta `admin/` do monorepo
 [GabrielVogado/saude-monitor](https://github.com/GabrielVogado/saude-monitor). O histórico
@@ -42,4 +42,4 @@ vindo da `develop` (`pr-origem-master.yml`). Os rulesets de proteção ficam em
 `.github/rulesets/`.
 
 Git-flow, convenções e regras do projeto: `Documentos/10-git-flow/MANUAL.md` no
-[radar-saude-docs](https://github.com/devpointinnovations/radar-saude-docs).
+[pulseira-verde-docs](https://github.com/devpointinnovations/pulseira-verde-docs).
