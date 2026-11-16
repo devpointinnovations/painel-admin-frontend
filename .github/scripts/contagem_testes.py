@@ -39,23 +39,15 @@ import os
 import sys
 import xml.etree.ElementTree as ET
 
-AREAS = ("backend", "frontend", "admin")
+# Repositório próprio do Painel Admin desde 29/10/2026: só a área admin, na raiz.
+AREAS = ("admin",)
 
-# Código de produção de cada área: o que, alterado, exige teste novo. Segue o
-# mesmo recorte da cobertura de cada área (jacoco em build.gradle,
-# collectCoverageFrom em jest.config.js): estilo e tema não têm teste a cobrar.
+# Código de produção da área: o que, alterado, exige teste novo. Segue o mesmo
+# recorte da cobertura (estilos não têm teste a cobrar).
 CODIGO_DE_PRODUCAO = {
-    "backend": {
-        "incluir": ["backend/src/main/java/*"],
-        "excluir": [],
-    },
-    "frontend": {
-        "incluir": ["frontend/src/*", "frontend/App.js"],
-        "excluir": ["frontend/src/__tests__/*", "frontend/src/*/css/*", "frontend/src/theme/*"],
-    },
     "admin": {
-        "incluir": ["admin/src/main.ts", "admin/src/app/*.ts", "admin/src/app/*.html"],
-        "excluir": ["admin/src/*.spec.ts"],
+        "incluir": ["src/main.ts", "src/app/*.ts", "src/app/*.html"],
+        "excluir": ["src/*.spec.ts"],
     },
 }
 
